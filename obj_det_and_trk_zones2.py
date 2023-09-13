@@ -641,14 +641,14 @@ def detect(weights=ROOT / 'yolov5n.pt',
             else:
                 p, im0, frame = path, im0s.copy(), getattr(dataset, 'frame', 0)
                 
-            # set the maximum size for width or height of the visualised frame
-            max_size = 1000
+            # Before resizing
+            #print("Original im0 dimensions:", im0.shape)
+
+            # Increase the size of im0 by a factor of 1.5 (both width and height)
+            im0 = cv2.resize(im0, None, fx=1.7, fy=1.7)
             
-            # calculate the scaling factor to maintain aspect ratio
-            scale_factor = min(1, max_size / max(im0.shape[:2]))
-            
-            # resize the frame
-            im0 = cv2.resize(im0, (int(im0.shape[1] * scale_factor), int(im0.shape[0] * scale_factor)))
+            # After resizing
+            #print("Resized im0 dimensions:", im0.shape)
             
             # add 'default' zone of entire frame if no zones loaded
             if (load_zones_path is None or len(zone_rois) < 1) and not default_zone_set:
