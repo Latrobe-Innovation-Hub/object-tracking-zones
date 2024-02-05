@@ -17,6 +17,8 @@ streams = {
     'OpenDeskSpace203': 'rtsp://192.168.3.87:9000/live',
     'CollaborationHub201C': 'rtsp://192.168.3.75:9000/live',
     'MV12-EntryDoor': 'rtsp://192.168.3.85:9000/live',
+    'PresentationEntry200': 'rtsp://192.168.3.76:9000/live',
+    'PitchSpace213': 'rtsp://192.168.3.69:9000/live',
 }
 
 # Define YOLO model weights
@@ -30,16 +32,16 @@ weights = {
 
 # Define wanted Class detection IDs and their confidence levels
 class_confidences = {
-     0: 0.05,   # person
-    13: 0.05,   # bench
-    24: 0.05,   # backpack
-    26: 0.05,   # handbag
-    56: 0.40,   # chair
-    57: 0.05,   # couch
-    60: 0.05,   # dining table
-    62: 0.01,   # tv
-    63: 0.05,   # laptop
-    65: 0.05,   # keyboard
+     0: 0.55,   # person
+    13: 0.55,   # bench
+    24: 0.55,   # backpack
+    26: 0.55,   # handbag
+    56: 0.55,   # chair
+    57: 0.55,   # couch
+    60: 0.55,   # dining table
+    62: 0.55,   # tv
+    63: 0.55,   # laptop
+    65: 0.55,   # keyboard
 }
 
 # Build command arguments for classes and their confidences
@@ -54,7 +56,7 @@ general_conf = ['--conf-thres', '0.25']
 # Function to process a camera stream
 def process_stream(room, url):
     cmd = [
-        'python', 'obj_det_and_trk_zones.py',
+        'python', 'obj_det_and_trk-many.py',
         '--weights', weights['small'],
         '--source', url,
         '--video_name', room,
