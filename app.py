@@ -6,13 +6,23 @@ Date: 17.07.2023
 
 import streamlit as st
 from obj_det_and_trk_streamlit import *
+import tempfile
+
+# Example RTSP feed URLs
+rtsp_feeds = {
+    "CollaborationHub201C": "rtsp://192.168.3.75:9000/live",
+    "Kitchen": "rtsp://192.168.3.77:9000/live",
+    "OpenDeskSpace203": "rtsp://192.168.3.87:9000/live",
+    "MV12-EntryDoor": "rtsp://192.168.3.85:9000/live",
+    "PitchSpace213": "rtsp://192.168.3.69:9000/live",
+    "CoWorkLounge201B": "rtsp://192.168.3.78:9000/live",
+}
 
 #--------------------------------Web Page Designing------------------------------
 hide_menu_style = """
     <style>
         MainMenu {visibility: hidden;}
-        
-        
+    
          div[data-testid="stHorizontalBlock"]> div:nth-child(1)
         {  
             border : 2px solid #doe0db;
@@ -77,13 +87,10 @@ def main():
     inference_msg = st.empty()
     st.sidebar.title("USER Configuration")
     
-
-    input_source = st.sidebar.radio("Source",
-                                         ('Video', 'WebCam'))
+    input_source = st.sidebar.radio("Source", ('RTSP Feed', 'Video', 'WebCam'))
 
     conf_thres = st.sidebar.text_input("Class confidence threshold", 
                                        "0.25")
-
  
     save_output_video = st.sidebar.radio("Save output video?",
                                          ('Yes', 'No'))
@@ -98,6 +105,47 @@ def main():
            
     weights = "yolov5n.pt"
     device="cpu"
+    
+    # ------------------------- RTSP VIDEO ------------------------
+    if input_source == "RTSP Feed":
+        # Let the user select an RTSP feed
+        feed_selection = st.sidebar.selectbox("Select RTSP Feed", list(rtsp_feeds.keys()))
+
+        # Get the selected RTSP URL
+        rtsp_url = rtsp_feeds[feed_selection]
+
+        if st.sidebar.button("Start Tracking"):
+            stframe = st.empty()
+            
+            st.markdown("""<h4 style="color:black;">
+                            Memory Overall Statistics</h4>""", 
+                            unsafe_allow_html=True)
+            kpi5, kpi6 = st.columns(2)
+
+            with kpi5:
+                st.markdown("""<h5 style="color:black;">
+                            CPU Utilization</h5>""", 
+                            unsafe_allow_html=True)
+                kpi5_text = st.markdown("0")
+            
+            with kpi6:
+                st.markdown("""<h5 style="color:black;">
+                            Memory Usage</h5>""", 
+                            unsafe_allow_html=True)
+                kpi6_text = st.markdown("0")
+
+            # Call the detect function with the RTSP URL
+            detect(weights=weights, 
+                   source=rtsp_url,  # Use the selected RTSP URL
+                   stframe=stframe, 
+                   kpi5_text=kpi5_text,
+                   kpi6_text=kpi6_text,
+                   conf_thres=float(conf_thres),
+                   device=device,
+                   classes=0, nosave=nosave, 
+                   display_labels=display_labels)
+
+            inference_msg.success("Inference Complete!")
 
     # ------------------------- LOCAL VIDEO ------------------------
     if input_source == "Video":
@@ -105,6 +153,12 @@ def main():
         video = st.sidebar.file_uploader("Select input video", 
                                         type=["mp4", "avi"], 
                                         accept_multiple_files=False)
+                                        
+        if video is not None and st.sidebar.button("Start Tracking"):
+            # Save the uploaded video to a temporary file
+            with tempfile.NamedTemporaryFile(delete=False) as tmpfile:
+                tmpfile.write(video.read())
+                video_path = tmpfile.name
         
         if st.sidebar.button("Start Tracking"):
             
@@ -128,7 +182,7 @@ def main():
                 kpi6_text = st.markdown("0")
             
             detect(weights=weights, 
-                   source=video.name,  
+                   source=video_path,  
                    stframe=stframe, 
                    kpi5_text=kpi5_text,
                    kpi6_text = kpi6_text,
