@@ -18,11 +18,21 @@ rtsp_feeds = {
     "CoWorkLounge201B": "rtsp://192.168.3.78:9000/live",
 }
 
+# Define YOLO model weights
+weights_dict = {
+    'nano': 'yolov5n.pt',
+    'small': 'yolov5s.pt',
+    'medium': 'yolov5m.pt',
+    'large': 'yolov5l.pt',
+    'extra_large': 'yolov5x.pt',
+}
+
 #--------------------------------Web Page Designing------------------------------
 hide_menu_style = """
     <style>
         MainMenu {visibility: hidden;}
-    
+        
+        
          div[data-testid="stHorizontalBlock"]> div:nth-child(1)
         {  
             border : 2px solid #doe0db;
@@ -85,15 +95,25 @@ def main():
                 unsafe_allow_html=True)
 
     inference_msg = st.empty()
-    st.sidebar.title("USER Configuration")
+    st.sidebar.title("Configuration")
     
     input_source = st.sidebar.radio("Source", ('RTSP Feed', 'Video', 'WebCam'))
+    #input_source = 'RTSP Feed'
 
-    conf_thres = st.sidebar.text_input("Class confidence threshold", 
-                                       "0.25")
+    #conf_thres = st.sidebar.text_input("Class confidence threshold", 
+    #                                   "0.25")
+                                       
+    conf_thres = "0.25"
+    
+    model_choice = st.sidebar.selectbox("Choose YOLO Model Size", list(weights_dict.keys()))
+
+    # Use the selection to get the corresponding weights file
+    weights = weights_dict[model_choice]
+
  
-    save_output_video = st.sidebar.radio("Save output video?",
-                                         ('Yes', 'No'))
+    #save_output_video = st.sidebar.radio("Save output video?",
+    #                                     ('Yes', 'No'))
+    save_output_video = 'No'                                     
 
     if save_output_video == 'Yes':
         nosave = False
@@ -103,7 +123,7 @@ def main():
         nosave = True
         display_labels = True 
            
-    weights = "yolov5n.pt"
+    #weights = "yolov5n.pt"
     device="cpu"
     
     # ------------------------- RTSP VIDEO ------------------------
@@ -150,15 +170,17 @@ def main():
     # ------------------------- LOCAL VIDEO ------------------------
     if input_source == "Video":
         
-        video = st.sidebar.file_uploader("Select input video", 
-                                        type=["mp4", "avi"], 
-                                        accept_multiple_files=False)
+        #video = st.sidebar.file_uploader("Select input video", 
+        #                                type=["mp4", "avi"], 
+        #                                accept_multiple_files=False)
                                         
-        if video is not None and st.sidebar.button("Start Tracking"):
+        video = st.sidebar.selectbox("Select Video", ("videos/crowd-1.mp4","videos/crowd-2.mp4","videos/test.mp4"))
+                                        
+        #if video is not None and st.sidebar.button("Start Tracking"):
             # Save the uploaded video to a temporary file
-            with tempfile.NamedTemporaryFile(delete=False) as tmpfile:
-                tmpfile.write(video.read())
-                video_path = tmpfile.name
+        #    with tempfile.NamedTemporaryFile(delete=False) as tmpfile:
+        #        tmpfile.write(video.read())
+        #        video_path = tmpfile.name
         
         if st.sidebar.button("Start Tracking"):
             
@@ -182,14 +204,14 @@ def main():
                 kpi6_text = st.markdown("0")
             
             detect(weights=weights, 
-                   source=video_path,  
+                   source=video,  
                    stframe=stframe, 
                    kpi5_text=kpi5_text,
                    kpi6_text = kpi6_text,
                    conf_thres=float(conf_thres),
                    device="cpu",
-                    classes=0,nosave=nosave, 
-                    display_labels=display_labels)
+                   classes=0,nosave=nosave, 
+                   display_labels=display_labels)
 
             inference_msg.success("Inference Complete!")
 
@@ -197,6 +219,18 @@ def main():
 
     # ------------------------- LOCAL VIDEO ------------------------
     if input_source == "WebCam":
+        webcam_src = {
+            'webcam-0': 0,
+            'webcam-1': 1,
+            'webcam-2': 2,
+            'webcam-3': 3,
+            'webcam-4': 4,
+        }
+        
+        webcam_choice = st.sidebar.selectbox("webcam", list(webcam_src.keys()))
+
+        # Use the selection to get the corresponding weights file
+        webcam = webcam_src[webcam_choice]
         
         if st.sidebar.button("Start Tracking"):
             
@@ -220,7 +254,7 @@ def main():
                 kpi6_text = st.markdown("0")
             
             detect(weights=weights, 
-                   source="0",  
+                   source=f"{webcam}",  
                    stframe=stframe, 
                    kpi5_text=kpi5_text,
                    kpi6_text = kpi6_text,
