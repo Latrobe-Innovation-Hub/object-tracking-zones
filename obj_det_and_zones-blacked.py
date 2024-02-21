@@ -29,12 +29,8 @@ Date: 15.04.2023
     
   b. ADDED visualisation improvements - seperate zone and track visual function and moved visualise_objects function into tracks loop
   c.
-
-NOTE =====> This version displays dots against a black background (might want to remove the real video...)
-Could add this to streamlit???
-
 ----------------Example---------------------
-python obj_det_and_zones-blacked.py --weights yolov5s.pt --source "videos/crowd-1.mp4" --blur-obj --color-box
+python obj_det_and_trk_zones.py --weights yolov5n.pt --source "videos/crowd-1.mp4" --classes 0 --conf-thres .25 --load-zones zone_save_test.txt --save-zones zone_save_test.txt
 """
 
 import os
@@ -342,7 +338,7 @@ def visualize_tracking_results(im0, tracked_dets, zone_rois, category_dict, trac
                 
                 #### =======================================================
                 # Draw circles on the mask image using the calculated center points
-                circle_radius = 10
+                circle_radius = 5
                 circle_color = (0, 255, 0)  # Green color in BGR
                 cv2.circle(mask_image, center_point, circle_radius, circle_color, -1)  # -1 for filled circle
                 #### =======================================================
@@ -506,7 +502,8 @@ def detect(weights=ROOT / 'yolov5n.pt',
 
     # show video feed frame
     show_frame = True
-    
+    show_mask = True
+
     # tracking in zones only
     track_in_zones_only = False
     
@@ -667,7 +664,6 @@ def detect(weights=ROOT / 'yolov5n.pt',
         
         #### =======================================================
         #### changed this section 
-        show_mask = True
         
         if show_frame:
             cv2.imshow('frame', im0)
