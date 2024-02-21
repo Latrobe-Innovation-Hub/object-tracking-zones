@@ -5,8 +5,23 @@ Date: 17.07.2023
 """
 
 import streamlit as st
-from obj_det_and_trk_streamlit import *
+#from obj_det_and_trk_streamlit import *
+from obj_det_and_trk_zones import *
 import tempfile
+
+import streamlit as st
+#import redis
+import json
+
+import torch
+
+# Connect to Redis
+#r = redis.Redis(host='localhost', port=6379, db=0)
+
+# Read the data
+#zone_counts = json.loads(r.get('zone_counts'))
+
+
 
 # Example RTSP feed URLs
 rtsp_feeds = {
@@ -56,6 +71,18 @@ hide_menu_style = """
             padding: 25px;
             
         }
+        
+        div[data-testid="stHorizontalBlock"]> div:nth-child(3)
+        {   
+            border : 2px solid #doe0db;
+            background:dodgerblue;
+            border-radius:5px;
+            text-align:center;
+            font-weight:bold;
+            color:black;
+            padding: 25px;
+            
+        }
     </style>
     """
 
@@ -68,14 +95,14 @@ main_title = """
             </div>
             """
     
-sub_title = """
-            <div>
-                <h6 style="color:dodgerblue;
-                text-align:center;
-                margin-top:-40px;">
-                Streamlit Basic Dasboard </h6>
-            </div>
-            """
+#sub_title = """
+#            <div>
+#                <h6 style="color:dodgerblue;
+#                text-align:center;
+#                margin-top:-40px;">
+#                Streamlit Basic Dasboard </h6>
+#            </div>
+#            """
 #--------------------------------------------------------------------------------
 
 
@@ -90,27 +117,25 @@ def main():
 
     st.markdown(main_title,
                 unsafe_allow_html=True)
+                
+    kpi5, kpi6, kpi7 = st.columns(3)
 
-    st.markdown(sub_title,
-                unsafe_allow_html=True)
+    #st.markdown(sub_title,unsafe_allow_html=True)
 
     inference_msg = st.empty()
     st.sidebar.title("Configuration")
     
     input_source = st.sidebar.radio("Source", ('RTSP Feed', 'Video', 'WebCam'))
     #input_source = 'RTSP Feed'
-
-    #conf_thres = st.sidebar.text_input("Class confidence threshold", 
-    #                                   "0.25")
-                                       
-    conf_thres = "0.25"
     
     model_choice = st.sidebar.selectbox("Choose YOLO Model Size", list(weights_dict.keys()))
 
     # Use the selection to get the corresponding weights file
     weights = weights_dict[model_choice]
+    
+    conf_thres = st.sidebar.text_input("Conf", "0.25")
+    #conf_thres = "0.25"
 
- 
     #save_output_video = st.sidebar.radio("Save output video?",
     #                                     ('Yes', 'No'))
     save_output_video = 'No'                                     
@@ -124,7 +149,7 @@ def main():
         display_labels = True 
            
     #weights = "yolov5n.pt"
-    device="cpu"
+    device="0"
     
     # ------------------------- RTSP VIDEO ------------------------
     if input_source == "RTSP Feed":
@@ -137,22 +162,28 @@ def main():
         if st.sidebar.button("Start Tracking"):
             stframe = st.empty()
             
-            st.markdown("""<h4 style="color:black;">
-                            Memory Overall Statistics</h4>""", 
-                            unsafe_allow_html=True)
-            kpi5, kpi6 = st.columns(2)
-
+            #st.markdown("""<h4 style="color:black;">
+            #                Memory Overall Statistics</h4>""", 
+            #                unsafe_allow_html=True)
+            #kpi5, kpi6, kpi7 = st.columns(3)
+            
             with kpi5:
                 st.markdown("""<h5 style="color:black;">
                             CPU Utilization</h5>""", 
                             unsafe_allow_html=True)
-                kpi5_text = st.markdown("0")
+                kpi5_text = st.markdown("--")
             
             with kpi6:
                 st.markdown("""<h5 style="color:black;">
                             Memory Usage</h5>""", 
                             unsafe_allow_html=True)
-                kpi6_text = st.markdown("0")
+                kpi6_text = st.markdown("--")
+                
+            with kpi7:
+                st.markdown("""<h5 style="color:black;">
+                            Detections Observed</h5>""", 
+                            unsafe_allow_html=True)
+                kpi7_text = st.markdown("--")
 
             # Call the detect function with the RTSP URL
             detect(weights=weights, 
@@ -160,10 +191,22 @@ def main():
                    stframe=stframe, 
                    kpi5_text=kpi5_text,
                    kpi6_text=kpi6_text,
+                   kpi7_text=kpi7_text,
                    conf_thres=float(conf_thres),
-                   device=device,
+                   device="0",
                    classes=0, nosave=nosave, 
                    display_labels=display_labels)
+                   
+            # Attempt to read the data
+            try:
+                with open('zone_counts.json', 'r') as f:
+                    zone_counts = json.load(f)
+            except (FileNotFoundError, json.JSONDecodeError):
+                zone_counts = {}  # Use an empty dictionary or some default value if the file is missing or empty
+
+            # Display in Streamlit
+            for zone, details in zone_counts.items():
+                st.header(f"{zone}: {details['object_count']} objects")
 
             inference_msg.success("Inference Complete!")
 
@@ -260,8 +303,8 @@ def main():
                    kpi6_text = kpi6_text,
                    conf_thres=float(conf_thres),
                    device="cpu",
-                    classes=0,nosave=nosave, 
-                    display_labels=display_labels)
+                   classes=0,nosave=nosave, 
+                   display_labels=display_labels)
 
             inference_msg.success("Inference Complete!")
            
