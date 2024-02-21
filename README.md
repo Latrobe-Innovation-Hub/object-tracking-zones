@@ -6,6 +6,8 @@
 - Added Support of Streamlit Dashboard
 - Code can run on Both (CPU & GPU)
 - Video/WebCam/External Camera/IP Stream Supported
+- Blacked demo (dots on black background
+- Streamlit web application (app.py)
 
 ### Coming Soon
 - Option to crop and save detected objects
@@ -86,6 +88,9 @@ python obj_det_and_trk_zones.py --weights yolov5s.pt --source 0 --classes 0 56 -
 
 # for black background with dots use 'obj_det_and_zones-blacked.py':
 python obj_det_and_zones-blacked.py --weights yolov5s.pt --source "videos/crowd-1.mp4" --blur-obj --color-box
+
+# to run streamlit web demo (may have requirements that need to be manually configured at this point; read console errors if so...):
+streamlit run app.py
 ```
 
 ### Streamlit Dashboard
