@@ -5,8 +5,8 @@ Date: 17.07.2023
 """
 
 import streamlit as st
-#from obj_det_and_trk_streamlit import *
-from obj_det_and_trk_zones_streamlit import *
+from obj_det_and_trk import *
+#from obj_det_and_trk_zones_streamlit import *
 import tempfile
 
 import streamlit as st
@@ -14,16 +14,11 @@ import streamlit as st
 import json
 
 import torch
-
-# Connect to Redis
-#r = redis.Redis(host='localhost', port=6379, db=0)
-
-# Read the data
-#zone_counts = json.loads(r.get('zone_counts'))
+import threading
 
 
 
-# Example RTSP feed URLs
+
 rtsp_feeds = {
     "CollaborationHub201C": "rtsp://192.168.3.75:9000/live",
     "Kitchen": "rtsp://192.168.3.77:9000/live",
@@ -31,6 +26,12 @@ rtsp_feeds = {
     "MV12-EntryDoor": "rtsp://192.168.3.85:9000/live",
     "PitchSpace213": "rtsp://192.168.3.69:9000/live",
     "CoWorkLounge201B": "rtsp://192.168.3.78:9000/live",
+}
+
+stored_videos = {
+    "video-1": "videos/crowd-1.mp4",
+    "video-2": "videos/crowd-2.mp4",
+    "video-3": "videos/test.mp4",
 }
 
 # Define YOLO model weights
@@ -91,7 +92,7 @@ main_title = """
                 <h1 style="color:black;
                 text-align:center; font-size:35px;
                 margin-top:-95px;">
-                YOLOv5 People Detection and Tracking</h1>
+                Occupancy Utilisation Demo</h1>
             </div>
             """
     
@@ -105,7 +106,10 @@ main_title = """
 #            """
 #--------------------------------------------------------------------------------
 
-
+# Initialize or update the tracking state
+if 'tracking_started' not in st.session_state:
+    st.session_state.tracking_started = False
+    
 #---------------------------Main Function for Execution--------------------------
 def main():
     st.set_page_config(page_title='Dashboard', 
@@ -120,24 +124,42 @@ def main():
                 
     kpi5, kpi6, kpi7 = st.columns(3)
 
-    #st.markdown(sub_title,unsafe_allow_html=True)
-
     inference_msg = st.empty()
     st.sidebar.title("Configuration")
     
-    input_source = st.sidebar.radio("Source", ('RTSP Feed', 'Video', 'WebCam'))
-    #input_source = 'RTSP Feed'
+    input_source = st.sidebar.radio("Source", ('WebCam', 'Video', 'RTSP',))
     
-    model_choice = st.sidebar.selectbox("Choose YOLO Model Size", list(weights_dict.keys()))
-
-    # Use the selection to get the corresponding weights file
+    if input_source == "RTSP":
+        feed_selection = st.sidebar.selectbox("Select RTSP Feed", list(rtsp_feeds.keys()))
+        source = rtsp_feeds[feed_selection]
+    elif input_source == "Video":
+        video_selection = st.sidebar.selectbox("Select Video", list(stored_videos.keys()))
+        source = stored_videos[video_selection]
+    elif input_source == "WebCam":
+        webcam_src = {
+            'webcam-0': 0,
+            'webcam-1': 1,
+            'webcam-2': 2,
+            'webcam-3': 3,
+            'webcam-4': 4,
+        }
+        webcam_choice = st.sidebar.selectbox("Select Webcam Source", list(webcam_src.keys()))
+        source = str(webcam_src[webcam_choice])
+        
+    device_choice = st.sidebar.selectbox("Set Inference Device", ('CPU', 'GPU')) 
+    device = None
+    if device_choice == 'GPU':
+        device = '0'
+    else:
+        device = 'cpu'
+    
+    model_choice = st.sidebar.selectbox("Choose Model Size", list(weights_dict.keys()))
     weights = weights_dict[model_choice]
     
-    conf_thres = st.sidebar.text_input("Conf", "0.25")
-    #conf_thres = "0.25"
+    conf_thres = st.sidebar.text_input("Set Detection Confidence Level", "0.5")
+    
+    blacked_choice = st.sidebar.radio("Show Blacked Out Frame?", ('Yes', 'No'))
 
-    #save_output_video = st.sidebar.radio("Save output video?",
-    #                                     ('Yes', 'No'))
     save_output_video = 'No'                                     
 
     if save_output_video == 'Yes':
@@ -147,177 +169,62 @@ def main():
     else:
         nosave = True
         display_labels = True 
-           
-    #weights = "yolov5n.pt"
-    device="0"
-    
-    # ------------------------- RTSP VIDEO ------------------------
-    if input_source == "RTSP Feed":
-        # Let the user select an RTSP feed
-        feed_selection = st.sidebar.selectbox("Select RTSP Feed", list(rtsp_feeds.keys()))
-
-        # Get the selected RTSP URL
-        rtsp_url = rtsp_feeds[feed_selection]
-
-        if st.sidebar.button("Start Tracking"):
-            stframe = st.empty()
-            
-            #st.markdown("""<h4 style="color:black;">
-            #                Memory Overall Statistics</h4>""", 
-            #                unsafe_allow_html=True)
-            #kpi5, kpi6, kpi7 = st.columns(3)
-            
-            with kpi5:
-                st.markdown("""<h5 style="color:black;">
-                            CPU Utilization</h5>""", 
-                            unsafe_allow_html=True)
-                kpi5_text = st.markdown("--")
-            
-            with kpi6:
-                st.markdown("""<h5 style="color:black;">
-                            Memory Usage</h5>""", 
-                            unsafe_allow_html=True)
-                kpi6_text = st.markdown("--")
-                
-            with kpi7:
-                st.markdown("""<h5 style="color:black;">
-                            Detections Observed</h5>""", 
-                            unsafe_allow_html=True)
-                kpi7_text = st.markdown("--")
-
-            # Call the detect function with the RTSP URL
-            detect(weights=weights, 
-                   source=rtsp_url,  # Use the selected RTSP URL
-                   stframe=stframe, 
-                   kpi5_text=kpi5_text,
-                   kpi6_text=kpi6_text,
-                   kpi7_text=kpi7_text,
-                   conf_thres=float(conf_thres),
-                   device="0",
-                   classes=0, nosave=nosave, 
-                   display_labels=display_labels)
-                   
-            # Attempt to read the data
-            try:
-                with open('zone_counts.json', 'r') as f:
-                    zone_counts = json.load(f)
-            except (FileNotFoundError, json.JSONDecodeError):
-                zone_counts = {}  # Use an empty dictionary or some default value if the file is missing or empty
-
-            # Display in Streamlit
-            for zone, details in zone_counts.items():
-                st.header(f"{zone}: {details['object_count']} objects")
-
-            inference_msg.success("Inference Complete!")
-
-    # ------------------------- LOCAL VIDEO ------------------------
-    if input_source == "Video":
         
-        #video = st.sidebar.file_uploader("Select input video", 
-        #                                type=["mp4", "avi"], 
-        #                                accept_multiple_files=False)
-                                        
-        video = st.sidebar.selectbox("Select Video", ("videos/crowd-1.mp4","videos/crowd-2.mp4","videos/test.mp4"))
-                                        
-        #if video is not None and st.sidebar.button("Start Tracking"):
-            # Save the uploaded video to a temporary file
-        #    with tempfile.NamedTemporaryFile(delete=False) as tmpfile:
-        #        tmpfile.write(video.read())
-        #        video_path = tmpfile.name
+    # Button to toggle tracking on and off
+    if st.sidebar.button("Start/Stop Tracking"):
+        st.session_state.tracking_started = not st.session_state.tracking_started
+
+    # Now check if tracking should be started or stopped based on the session_state
+    if st.session_state.tracking_started:
+        column1, column2 = st.columns(2)
+        stframe = column1.empty()
+        stframe2 = column2.empty()
         
-        if st.sidebar.button("Start Tracking"):
-            
-            stframe = st.empty()
-            
-            st.markdown("""<h4 style="color:black;">
-                            Memory Overall Statistics</h4>""", 
-                            unsafe_allow_html=True)
-            kpi5, kpi6 = st.columns(2)
-
-            with kpi5:
-                st.markdown("""<h5 style="color:black;">
-                            CPU Utilization</h5>""", 
-                            unsafe_allow_html=True)
-                kpi5_text = st.markdown("0")
-            
-            with kpi6:
-                st.markdown("""<h5 style="color:black;">
-                            Memory Usage</h5>""", 
-                            unsafe_allow_html=True)
-                kpi6_text = st.markdown("0")
-            
-            detect(weights=weights, 
-                   source=video,  
-                   stframe=stframe, 
-                   kpi5_text=kpi5_text,
-                   kpi6_text = kpi6_text,
-                   conf_thres=float(conf_thres),
-                   device="cpu",
-                   classes=0,nosave=nosave, 
-                   display_labels=display_labels)
-
-            inference_msg.success("Inference Complete!")
-
-
-
-    # ------------------------- LOCAL VIDEO ------------------------
-    if input_source == "WebCam":
-        webcam_src = {
-            'webcam-0': 0,
-            'webcam-1': 1,
-            'webcam-2': 2,
-            'webcam-3': 3,
-            'webcam-4': 4,
-        }
+        with kpi5:
+            st.markdown("""<h5 style="color:black;">
+                        CPU Utilization</h5>""", 
+                        unsafe_allow_html=True)
+            kpi5_text = st.markdown("--")
         
-        webcam_choice = st.sidebar.selectbox("webcam", list(webcam_src.keys()))
+        with kpi6:
+            st.markdown("""<h5 style="color:black;">
+                        Memory Usage</h5>""", 
+                        unsafe_allow_html=True)
+            kpi6_text = st.markdown("--")
+            
+        with kpi7:
+            st.markdown("""<h5 style="color:black;">
+                        Detections Observed</h5>""", 
+                        unsafe_allow_html=True)
+            kpi7_text = st.markdown("--")
+            
+        if blacked_choice == 'Yes':
+            blacked=True
+        else:
+            blacked=None
+            
+        detect(weights=weights, 
+               source=source,
+               stframe=stframe,
+               stframe2=stframe2,
+               kpi5_text=kpi5_text,
+               kpi6_text=kpi6_text,
+               kpi7_text=kpi7_text,
+               conf_thres=float(conf_thres),
+               device=device,
+               classes=0, nosave=nosave, 
+               display_labels=display_labels,
+               blacked=blacked)
 
-        # Use the selection to get the corresponding weights file
-        webcam = webcam_src[webcam_choice]
-        
-        if st.sidebar.button("Start Tracking"):
-            
-            stframe = st.empty()
-            
-            st.markdown("""<h4 style="color:black;">
-                            Memory Overall Statistics</h4>""", 
-                            unsafe_allow_html=True)
-            kpi5, kpi6 = st.columns(2)
-
-            with kpi5:
-                st.markdown("""<h5 style="color:black;">
-                            CPU Utilization</h5>""", 
-                            unsafe_allow_html=True)
-                kpi5_text = st.markdown("0")
-            
-            with kpi6:
-                st.markdown("""<h5 style="color:black;">
-                            Memory Usage</h5>""", 
-                            unsafe_allow_html=True)
-                kpi6_text = st.markdown("0")
-            
-            detect(weights=weights, 
-                   source=f"{webcam}",  
-                   stframe=stframe, 
-                   kpi5_text=kpi5_text,
-                   kpi6_text = kpi6_text,
-                   conf_thres=float(conf_thres),
-                   device="cpu",
-                   classes=0,nosave=nosave, 
-                   display_labels=display_labels)
-
-            inference_msg.success("Inference Complete!")
-           
-    # --------------------------------------------------------------       
+    else:
+        # Code to clear the output or handle the UI when tracking is stopped
+        # This could be clearing the placeholders or showing a message
+        inference_msg.info("Tracking is not active.")
+         
     torch.cuda.empty_cache()
-    # --------------------------------------------------------------
 
-
-
-# --------------------MAIN FUNCTION CODE------------------------
 if __name__ == "__main__":
     try:
         main()
     except SystemExit:
         pass
-# ------------------------------------------------------------------
