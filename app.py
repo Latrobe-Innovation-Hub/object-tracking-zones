@@ -5,19 +5,12 @@ Date: 17.07.2023
 """
 
 import streamlit as st
-from obj_det_and_trk import *
-#from obj_det_and_trk_zones_streamlit import *
+from obj_det_and_trk_streamlit import *
 import tempfile
 
 import streamlit as st
-#import redis
 import json
-
 import torch
-import threading
-
-
-
 
 rtsp_feeds = {
     "CollaborationHub201C": "rtsp://192.168.3.75:9000/live",
