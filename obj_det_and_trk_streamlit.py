@@ -1,7 +1,7 @@
 """
 Edited
 Author: Andrew J McDonald
-Date: 17.07.2023
+Date: 22.02.2024
 """
 
 import os
@@ -35,10 +35,8 @@ ROOT = Path(os.path.relpath(ROOT, Path.cwd()))
 import skimage
 from sort import *
 
-
 #-----------Object Blurring-------------------
 blurratio = 40
-
 
 #.................. Tracker Functions .................
 '''Computer Color for every box and track'''
@@ -46,7 +44,6 @@ palette = (2 ** 11 - 1, 2 ** 15 - 1, 2 ** 20 - 1)
 def compute_color_for_labels(label):
     color = [int(int(p * (label ** 2 - label + 1)) % 255) for p in palette]
     return tuple(color)
-
 
 """" Calculates the relative bounding box from absolute pixel values. """
 def bbox_rel(*xyxy):
@@ -59,7 +56,6 @@ def bbox_rel(*xyxy):
     w = bbox_w
     h = bbox_h
     return x_c, y_c, w, h
-
 
 """Function to Draw Bounding boxes"""
 def draw_boxes(img, bbox, identities=None, categories=None, 
@@ -107,7 +103,6 @@ def draw_boxes(img, bbox, identities=None, categories=None,
     return img, mask_image
 #..............................................................................
 
-
 @torch.no_grad()
 def detect(weights=ROOT / 'yolov5n.pt',
         source=ROOT / 'yolov5/data/images', 
@@ -122,8 +117,8 @@ def detect(weights=ROOT / 'yolov5n.pt',
         augment=False, visualize=False,  update=False,  
         project=ROOT / 'runs/detect',  name='exp',  
         exist_ok=False, line_thickness=2,hide_labels=False,  
-        hide_conf=False,half=False,dnn=False,display_labels=False,
-        blur_obj=False,color_box = False, stframe=None, stframe2=None,
+        hide_conf=False, half=False,dnn=False,display_labels=False,
+        blur_obj=False, show_tracks=False, color_box = False, stframe=None, stframe2=None,
         save_zones=None, load_zones=None, blacked=None):
     
     save_img = not nosave and not source.endswith('.txt') 
@@ -137,7 +132,6 @@ def detect(weights=ROOT / 'yolov5n.pt',
                        iou_threshold=sort_iou_thresh) 
     track_color_id = 0
     #......................... 
-    
     
     webcam = source.isnumeric() or source.endswith('.txt') or source.lower().startswith(
         ('rtsp://', 'rtmp://', 'http://', 'https://'))
@@ -168,15 +162,12 @@ def detect(weights=ROOT / 'yolov5n.pt',
     vid_path, vid_writer = [None] * bs, [None] * bs
     
     t0 = time.time()
-    
     dt, seen = [0.0, 0.0, 0.0], 0
     
     mask_image = None
-    
     tracked_dets = None
     
     for path, im, im0s, vid_cap, s in dataset:
-        
         t1 = time_sync()
         im = torch.from_numpy(im).to(device)
         im = im.half() if half else im.float()  # uint8 to fp16/32
@@ -195,8 +186,7 @@ def detect(weights=ROOT / 'yolov5n.pt',
         # NMS
         pred = non_max_suppression(pred, conf_thres, iou_thres, classes, agnostic_nms, max_det=max_det)
         dt[2] += time_sync() - t3
-
-        
+      
         for i, det in enumerate(pred):  # per image
             seen += 1
             if webcam:  # batch_size >= 1
@@ -242,21 +232,21 @@ def detect(weights=ROOT / 'yolov5n.pt',
                 tracked_dets = sort_tracker.update(dets_to_sort)
                 tracks =sort_tracker.getTrackers()
                 
-
                 #loop over tracks
-                # for track in tracks:
-                    # if color_box:
-                        # color = compute_color_for_labels(track_color_id)
-                        # [cv2.line(im0, (int(track.centroidarr[i][0]),int(track.centroidarr[i][1])), 
-                                # (int(track.centroidarr[i+1][0]),int(track.centroidarr[i+1][1])),
-                                # color, thickness=3) for i,_ in  enumerate(track.centroidarr) 
-                                # if i < len(track.centroidarr)-1 ] 
-                        # track_color_id = track_color_id+1
-                    # else:
-                        # [cv2.line(im0, (int(track.centroidarr[i][0]),int(track.centroidarr[i][1])), 
-                                # (int(track.centroidarr[i+1][0]),int(track.centroidarr[i+1][1])),
-                                # (124, 252, 0), thickness=3) for i,_ in  enumerate(track.centroidarr) 
-                                # if i < len(track.centroidarr)-1 ] 
+                if show_tracks:
+                    for track in tracks:
+                        if color_box:
+                            color = compute_color_for_labels(track_color_id)
+                            [cv2.line(im0, (int(track.centroidarr[i][0]),int(track.centroidarr[i][1])), 
+                                    (int(track.centroidarr[i+1][0]),int(track.centroidarr[i+1][1])),
+                                    color, thickness=3) for i,_ in  enumerate(track.centroidarr) 
+                                    if i < len(track.centroidarr)-1 ] 
+                            track_color_id = track_color_id+1
+                        else:
+                            [cv2.line(im0, (int(track.centroidarr[i][0]),int(track.centroidarr[i][1])), 
+                                    (int(track.centroidarr[i+1][0]),int(track.centroidarr[i+1][1])),
+                                    (124, 252, 0), thickness=3) for i,_ in  enumerate(track.centroidarr) 
+                                    if i < len(track.centroidarr)-1 ] 
                 
                 # draw boxes for visualization
                 if len(tracked_dets)>0:
@@ -303,7 +293,6 @@ def detect(weights=ROOT / 'yolov5n.pt',
     if vid_cap:
         vid_cap.release()
 
-
 def parse_opt():
     parser = argparse.ArgumentParser()
     parser.add_argument('--weights', nargs='+', type=str, default=ROOT / 'yolov5s.pt', help='model path(s)')
@@ -333,6 +322,7 @@ def parse_opt():
     parser.add_argument('--half', action='store_true', help='use FP16 half-precision inference')
     parser.add_argument('--dnn', action='store_true', help='use OpenCV DNN for ONNX inference')
     parser.add_argument('--blur-obj', action='store_true', help='Blur Detected Objects')
+    parser.add_argument('--show-tracks', action='store_true', help='BShow tracking visuals')
     parser.add_argument('--color-box', action='store_true', help='Change color of every box and track')
     parser.add_argument('--kpi5_text', default='', help='streemlit kpi5_text')
     parser.add_argument('--kpi6_text', default='', help='streemlit kpi6_text')
@@ -342,11 +332,9 @@ def parse_opt():
     print_args(vars(opt))
     return opt
 
-
 def main(opt):
     check_requirements(exclude=('tensorboard', 'thop'))
     detect(**vars(opt))
-
 
 if __name__ == "__main__":
     opt = parse_opt()
