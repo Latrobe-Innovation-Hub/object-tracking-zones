@@ -6,7 +6,7 @@ Date: 17.07.2023
 
 import streamlit as st
 #from obj_det_and_trk_streamlit import *
-from obj_det_and_trk_zones import *
+from obj_det_and_trk_zones_streamlit import *
 import tempfile
 
 import streamlit as st
