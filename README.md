@@ -83,6 +83,9 @@ python obj_det_and_trk_zones.py --weights yolov5n.pt --source 0 --classes 0 --co
 
 # for object detection + tracking from webcam, with confidence set per class person 75% and table? 40%, and absolute confidence (lowest possible) set at 25%
 python obj_det_and_trk_zones.py --weights yolov5s.pt --source 0 --classes 0 56 --conf-thres-per-class 0.75 0.40 --conf-thres 0.25
+
+# for black background with dots use 'obj_det_and_zones-blacked.py':
+python obj_det_and_zones-blacked.py --weights yolov5s.pt --source "videos/crowd-1.mp4" --blur-obj --color-box
 ```
 
 ### Streamlit Dashboard
