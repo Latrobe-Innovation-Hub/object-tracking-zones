@@ -9,6 +9,7 @@ from obj_det_and_trk_streamlit import *
 import tempfile
 
 import streamlit as st
+
 import json
 import torch
 
@@ -152,6 +153,8 @@ def main():
     conf_thres = st.sidebar.text_input("Set Detection Confidence Level", "0.5")
     
     blacked_choice = st.sidebar.radio("Show Blacked Out Frame?", ('Yes', 'No'))
+    
+    blur_choice = st.sidebar.radio("Blur detections?", ('Yes', 'No'), index=1)
 
     save_output_video = 'No'                                     
 
@@ -196,6 +199,11 @@ def main():
         else:
             blacked=None
             
+        if blur_choice == 'Yes':
+            blur=True
+        else:
+            blur=None
+            
         detect(weights=weights, 
                source=source,
                stframe=stframe,
@@ -207,7 +215,8 @@ def main():
                device=device,
                classes=0, nosave=nosave, 
                display_labels=display_labels,
-               blacked=blacked)
+               blacked=blacked,
+               blur_obj=blur)
 
     else:
         # Code to clear the output or handle the UI when tracking is stopped
