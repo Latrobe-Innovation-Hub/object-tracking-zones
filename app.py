@@ -1,15 +1,13 @@
 """
 Edited
 Author: Andrew J McDonald
-Date: 17.07.2023
+Date: 22.02.2024
 """
 
 import streamlit as st
 from obj_det_and_trk_streamlit import *
 import tempfile
-
 import streamlit as st
-
 import json
 import torch
 
@@ -26,6 +24,19 @@ stored_videos = {
     "video-1": "videos/crowd-1.mp4",
     "video-2": "videos/crowd-2.mp4",
     "video-3": "videos/test.mp4",
+}
+
+webcam_src = {
+    'webcam-0': 0,
+    'webcam-1': 1,
+    'webcam-2': 2,
+    'webcam-3': 3,
+    'webcam-4': 4,
+}
+
+inf_device = {
+    "CPU": "cpu",
+    "GPU": "0",
 }
 
 # Define YOLO model weights
@@ -78,6 +89,7 @@ hide_menu_style = """
             padding: 25px;
             
         }
+        
     </style>
     """
 
@@ -115,14 +127,15 @@ def main():
 
     st.markdown(main_title,
                 unsafe_allow_html=True)
-                
-    kpi5, kpi6, kpi7 = st.columns(3)
 
     inference_msg = st.empty()
-    st.sidebar.title("Configuration")
+    inference_msg.info("Tracking is not active.")
+    #st.sidebar.title("Configuration")
     
+    kpi5, kpi6, kpi7 = st.columns(3)
+    
+    #with st.sidebar.expander("Source Configuration"):
     input_source = st.sidebar.radio("Source", ('WebCam', 'Video', 'RTSP',))
-    
     if input_source == "RTSP":
         feed_selection = st.sidebar.selectbox("Select RTSP Feed", list(rtsp_feeds.keys()))
         source = rtsp_feeds[feed_selection]
@@ -130,47 +143,27 @@ def main():
         video_selection = st.sidebar.selectbox("Select Video", list(stored_videos.keys()))
         source = stored_videos[video_selection]
     elif input_source == "WebCam":
-        webcam_src = {
-            'webcam-0': 0,
-            'webcam-1': 1,
-            'webcam-2': 2,
-            'webcam-3': 3,
-            'webcam-4': 4,
-        }
         webcam_choice = st.sidebar.selectbox("Select Webcam Source", list(webcam_src.keys()))
         source = str(webcam_src[webcam_choice])
-        
-    device_choice = st.sidebar.selectbox("Set Inference Device", ('CPU', 'GPU')) 
-    device = None
-    if device_choice == 'GPU':
-        device = '0'
-    else:
-        device = 'cpu'
+            
+    #with st.sidebar.expander("Detection Configuration"):
+    device_choice = st.sidebar.selectbox("Set Inference Device", list(inf_device.keys()))
+    device = inf_device[device_choice]
     
     model_choice = st.sidebar.selectbox("Choose Model Size", list(weights_dict.keys()))
     weights = weights_dict[model_choice]
     
-    conf_thres = st.sidebar.text_input("Set Detection Confidence Level", "0.5")
-    
-    blacked_choice = st.sidebar.radio("Show Blacked Out Frame?", ('Yes', 'No'))
-    
-    blur_choice = st.sidebar.radio("Blur detections?", ('Yes', 'No'), index=1)
-
-    save_output_video = 'No'                                     
-
-    if save_output_video == 'Yes':
-        nosave = False
-        display_labels=False
-   
-    else:
-        nosave = True
-        display_labels = True 
+    conf_thres = st.sidebar.slider("Set Detection Confidence Level", min_value=0.0, max_value=1.0, value=0.5, step=0.01)
         
+    with st.sidebar.expander("Output Customization"):
+        blacked_choice = st.radio("Show Blacked Out Frame?", ('Yes', 'No'))
+        blur_choice = st.radio("Blur detections?", ('Yes', 'No'), index=1)
+        tracks_choice = st.radio("Show Tracking?", ('Yes', 'No'), index=1)
+
     # Button to toggle tracking on and off
     if st.sidebar.button("Start/Stop Tracking"):
         st.session_state.tracking_started = not st.session_state.tracking_started
 
-    # Now check if tracking should be started or stopped based on the session_state
     if st.session_state.tracking_started:
         column1, column2 = st.columns(2)
         stframe = column1.empty()
@@ -194,16 +187,12 @@ def main():
                         unsafe_allow_html=True)
             kpi7_text = st.markdown("--")
             
-        if blacked_choice == 'Yes':
-            blacked=True
-        else:
-            blacked=None
-            
-        if blur_choice == 'Yes':
-            blur=True
-        else:
-            blur=None
-            
+        blacked = blacked_choice == 'Yes'
+        blur = blur_choice == 'Yes'
+        tracks = tracks_choice == 'Yes'
+        
+        inference_msg.info("Tracking is active.")
+        
         detect(weights=weights, 
                source=source,
                stframe=stframe,
@@ -213,14 +202,11 @@ def main():
                kpi7_text=kpi7_text,
                conf_thres=float(conf_thres),
                device=device,
-               classes=0, nosave=nosave, 
-               display_labels=display_labels,
+               classes=0,
                blacked=blacked,
-               blur_obj=blur)
-
+               blur_obj=blur,
+               show_tracks=tracks)
     else:
-        # Code to clear the output or handle the UI when tracking is stopped
-        # This could be clearing the placeholders or showing a message
         inference_msg.info("Tracking is not active.")
          
     torch.cuda.empty_cache()
