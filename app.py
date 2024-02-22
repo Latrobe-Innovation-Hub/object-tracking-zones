@@ -153,18 +153,40 @@ def main():
     model_choice = st.sidebar.selectbox("Choose Model Size", list(weights_dict.keys()))
     weights = weights_dict[model_choice]
     
-    conf_thres = st.sidebar.slider("Set Detection Confidence Level", min_value=0.0, max_value=1.0, value=0.5, step=0.01)
-        
+    with st.sidebar.expander("Model Customization"):
+        conf_thres = st.slider("Set Detection Confidence Level", min_value=0.0, max_value=1.0, value=0.5, step=0.01)
+        augment_choice = st.radio("Augmented Inferencing?", ('Yes', 'No'), index=1)
+        half_precision_choice = st.radio("Apply FP16 Half-Precision?", ('Yes', 'No'), index=1)
+        dnn_choice = st.radio("Use OpenCV's DNN?", ('Yes', 'No'), index=1)
+        debug_choice = st.radio("Console Info?", ('Yes', 'No'), index=1)
+    
     with st.sidebar.expander("Output Customization"):
         blacked_choice = st.radio("Show Blacked Out Frame?", ('Yes', 'No'))
         blur_choice = st.radio("Blur detections?", ('Yes', 'No'), index=1)
+        
+        blur_ratio = None
+        if blur_choice == 'Yes':
+            blur_ratio = st.slider("Set Detection Confidence Level", min_value=0, max_value=100, value=40, step=5)
+        
         tracks_choice = st.radio("Show Tracking?", ('Yes', 'No'), index=1)
+        display_labels_choice = st.radio("Display Labels?", ('Yes', 'No'), index=1)
 
     # Button to toggle tracking on and off
     if st.sidebar.button("Start/Stop Tracking"):
         st.session_state.tracking_started = not st.session_state.tracking_started
 
     if st.session_state.tracking_started:
+        blacked = blacked_choice == 'Yes'
+        blur = blur_choice == 'Yes'
+        tracks = tracks_choice == 'Yes'
+        
+        augment = augment_choice == 'Yes'
+        half_precision = half_precision_choice == 'Yes'
+        dnn = dnn_choice == 'Yes'
+        display_labels = display_labels_choice == 'Yes'
+        debug = debug_choice == 'Yes'
+        
+        
         column1, column2 = st.columns(2)
         stframe = column1.empty()
         stframe2 = column2.empty()
@@ -186,10 +208,6 @@ def main():
                         Detections Observed</h5>""", 
                         unsafe_allow_html=True)
             kpi7_text = st.markdown("--")
-            
-        blacked = blacked_choice == 'Yes'
-        blur = blur_choice == 'Yes'
-        tracks = tracks_choice == 'Yes'
         
         inference_msg.info("Tracking is active.")
         
@@ -205,7 +223,13 @@ def main():
                classes=0,
                blacked=blacked,
                blur_obj=blur,
-               show_tracks=tracks)
+               blur_ratio=blur_ratio,
+               show_tracks=tracks,
+               augment=augment,
+               half=half_precision,
+               dnn=dnn,
+               display_labels=display_labels,
+               debug=debug)
     else:
         inference_msg.info("Tracking is not active.")
          
