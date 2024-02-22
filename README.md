@@ -19,7 +19,7 @@
 ### Steps to run Code
 - Clone the repository
 ```
-git clone https://github.com/Hololens-Latrobe-Cisco/yolov5-object-tracking-with-zones.git
+git clone https://github.com/Latrobe-Innovation-Hub/object-tracking-zones.git
 ```
 
 - Goto the cloned folder.
