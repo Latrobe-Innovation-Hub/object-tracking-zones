@@ -90,6 +90,9 @@ python obj_det_and_trk_zones.py --weights yolov5s.pt --source 0 --classes 0 56 -
 python obj_det_and_zones-blacked.py --weights yolov5s.pt --source "videos/crowd-1.mp4" --blur-obj --color-box
 
 # to run streamlit web demo (may have requirements that need to be manually configured at this point; read console errors if so...):
+# Note 1: On my Windows system pip install streamlit required python /script dir being added to path: 'set PATH=%PATH%;C:\Users\andy\AppData\Roaming\Python\Python39\Scripts\'
+# Note 2: RTSP options only work if on La Trobe DIH JG (formally TC) building's network AND the Meraki cameras RTSP feed is enabled
+# to exit streamlit 'ctrl-c'
 streamlit run app.py
 ```
 
@@ -123,7 +126,7 @@ cap = cv2.VideoCapture(s, cv2.CAP_DSHOW)
     <td>YOLOv5 Streamlit Dashboard</td>
   </tr>
   <tr>
-    <td><img src="https://user-images.githubusercontent.com/62513924/189525324-9aaf4b60-9336-41c3-8a27-8722bb7da731.png"></td>
+     <td><img src="https://user-images.githubusercontent.com/62513924/189525324-9aaf4b60-9336-41c3-8a27-8722bb7da731.png"></td>
      <td><img src="https://user-images.githubusercontent.com/62513924/189525332-1e84b4d5-ae4e-4c1b-9498-0ec1d4ad4bd7.png"></td>
      <td><img src="https://user-images.githubusercontent.com/62513924/189525328-f85ef474-e964-4d79-8f75-78ad4e5397d4.png"></td>
      <td><img src="https://user-images.githubusercontent.com/62513924/189525342-8d4d81f4-5e3a-45aa-9972-5f5de1c72159.png"></td>
