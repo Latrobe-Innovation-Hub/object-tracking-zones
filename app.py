@@ -163,11 +163,7 @@ def main():
     with st.sidebar.expander("Output Customization"):
         blacked_choice = st.radio("Show Blacked Out Frame?", ('Yes', 'No'))
         blur_choice = st.radio("Blur detections?", ('Yes', 'No'), index=1)
-        
-        blur_ratio = None
-        if blur_choice == 'Yes':
-            blur_ratio = st.slider("Set Detection Confidence Level", min_value=0, max_value=100, value=40, step=5)
-        
+        blur_ratio = st.slider("Set Blur Level", min_value=0, max_value=100, value=40, step=5)
         tracks_choice = st.radio("Show Tracking?", ('Yes', 'No'), index=1)
         display_labels_choice = st.radio("Display Labels?", ('Yes', 'No'), index=1)
 
@@ -211,25 +207,29 @@ def main():
         
         inference_msg.info("Tracking is active.")
         
-        detect(weights=weights, 
-               source=source,
-               stframe=stframe,
-               stframe2=stframe2,
-               kpi5_text=kpi5_text,
-               kpi6_text=kpi6_text,
-               kpi7_text=kpi7_text,
-               conf_thres=float(conf_thres),
-               device=device,
-               classes=0,
-               blacked=blacked,
-               blur_obj=blur,
-               blur_ratio=blur_ratio,
-               show_tracks=tracks,
-               augment=augment,
-               half=half_precision,
-               dnn=dnn,
-               display_labels=display_labels,
-               debug=debug)
+        try:
+            detect(weights=weights, 
+                   source=source,
+                   stframe=stframe,
+                   stframe2=stframe2,
+                   kpi5_text=kpi5_text,
+                   kpi6_text=kpi6_text,
+                   kpi7_text=kpi7_text,
+                   conf_thres=float(conf_thres),
+                   device=device,
+                   classes=0,
+                   blacked=blacked,
+                   blur_obj=blur,
+                   blurratio=blur_ratio,
+                   show_tracks=tracks,
+                   augment=augment,
+                   half=half_precision,
+                   dnn=dnn,
+                   display_labels=display_labels,
+                   debug=debug)
+        except Exception as e:
+            print("An error occurred during detection:")
+            print(str(e))
     else:
         inference_msg.info("Tracking is not active.")
          
