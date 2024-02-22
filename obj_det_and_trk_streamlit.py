@@ -36,7 +36,7 @@ import skimage
 from sort import *
 
 #-----------Object Blurring-------------------
-blurratio = 40
+blurratio = None
 
 #.................. Tracker Functions .................
 '''Computer Color for every box and track'''
@@ -58,8 +58,8 @@ def bbox_rel(*xyxy):
     return x_c, y_c, w, h
 
 """Function to Draw Bounding boxes"""
-def draw_boxes(img, bbox, identities=None, categories=None, 
-                names=None, color_box=None,offset=(0, 0), mask_image=None):
+#def draw_boxes(img, bbox, display_labels, identities=None, categories=None, names=None, color_box=None, offset=(0, 0), mask_image=None):
+def draw_boxes(img, bbox, display_labels, identities=None, categories=None, names=None, color_box=None, offset=(0, 0), mask_image=None, debug=False, confidences=None):
                 
     if mask_image is None:
         mask_image = np.zeros_like(img)  # Create a mask if not provided
@@ -71,9 +71,26 @@ def draw_boxes(img, bbox, identities=None, categories=None,
         y1 += offset[1]
         y2 += offset[1]
         cat = int(categories[i]) if categories is not None else 0
-        id = int(identities[i]) if identities is not None else 0
+        #id = int(identities[i]) if identities is not None else 0
         data = (int((box[0]+box[2])/2),(int((box[1]+box[3])/2)))
-        label = str(id)
+        #label = str(id)
+        
+        # Get the name of the category from the category dictionary
+        category_name = names[cat] if names is not None and cat < len(names) else "Unknown"
+
+        # Optionally include the identity in the label if it's provided and display_labels is True
+        id = int(identities[i]) if identities is not None and i < len(identities) else 0
+        label = f"{category_name}" if display_labels else category_name  # Now includes object class name
+        
+        # Extract confidence if available
+        confidence = confidences[i] if confidences is not None and i < len(confidences) else None
+        
+        # Debugging information
+        if debug:
+            debug_info = f"Detection {i+1}: Bounding Box: {x1}, {y1}, {x2}, {y2}, Category: {category_name} (ID: {cat}), Identity: {id}"
+            if confidence is not None:
+                debug_info += f", Confidence: {confidence:.2f}"
+            print(debug_info)
         
         # Correctly calculate the center_point using the current box
         center_point = (int((x1 + x2) / 2), int((y1 + y2) / 2))
@@ -85,21 +102,27 @@ def draw_boxes(img, bbox, identities=None, categories=None,
         cv2.circle(mask_image, center_point, circle_radius, circle_color, -1)  # -1 for filled circle
         #### =======================================================
 
-        if color_box:
-            color = compute_color_for_labels(id)
+        # Determine the color based on the color_box flag.
+        color = compute_color_for_labels(id) if color_box else (255, 191, 0)
+
+        # Calculate text size if displaying labels, ensuring 'w' and 'h' are defined.
+        if display_labels:
             (w, h), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 1)
-            cv2.rectangle(img, (x1, y1), (x2, y2),color, 2)
-            cv2.rectangle(img, (x1, y1 - 20), (x1 + w, y1), (255,191,0), -1)
-            cv2.putText(img, label, (x1, y1 - 5),cv2.FONT_HERSHEY_SIMPLEX, 0.6, 
-            [255, 255, 255], 1)
-            cv2.circle(img, data, 3, color,-1)
-        else:
-            (w, h), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 1)
-            cv2.rectangle(img, (x1, y1), (x2, y2),(255,191,0), 2)
-            cv2.rectangle(img, (x1, y1 - 20), (x1 + w, y1), (255,191,0), -1)
-            cv2.putText(img, label, (x1, y1 - 5),cv2.FONT_HERSHEY_SIMPLEX, 0.6, 
-            [255, 255, 255], 1)
-            cv2.circle(img, data, 3, (255,191,0),-1)
+            # Draw label background rectangle
+            cv2.rectangle(img, (x1, y1 - 20), (x1 + w, y1), color, -1)
+            # Then draw the text label over it
+            cv2.putText(img, label, (x1, y1 - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.6, [255, 255, 255], 1)
+
+        # Regardless of displaying labels, draw the bounding box
+        cv2.rectangle(img, (x1, y1), (x2, y2), color, 2)
+
+        # Display the label if the flag is set.
+        if display_labels:
+            cv2.putText(img, label, (x1, y1 - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.6, [255, 255, 255], 1)
+
+        # Draw a circle with the determined color.
+        cv2.circle(img, data, 3, color, -1)
+
     return img, mask_image
 #..............................................................................
 
@@ -115,11 +138,11 @@ def detect(weights=ROOT / 'yolov5n.pt',
         save_txt=False, save_conf=False, save_crop=False, 
         nosave=False, classes=None,  agnostic_nms=False,  
         augment=False, visualize=False,  update=False,  
-        project=ROOT / 'runs/detect',  name='exp',  
+        project=ROOT / 'runs/detect',  name='exp', blurratio=40,
         exist_ok=False, line_thickness=2,hide_labels=False,  
-        hide_conf=False, half=False,dnn=False,display_labels=False,
+        hide_conf=False, half=False,dnn=False, display_labels=False,
         blur_obj=False, show_tracks=False, color_box = False, stframe=None, stframe2=None,
-        save_zones=None, load_zones=None, blacked=None):
+        save_zones=None, load_zones=None, blacked=None, debug=False):
     
     save_img = not nosave and not source.endswith('.txt') 
     
@@ -167,6 +190,9 @@ def detect(weights=ROOT / 'yolov5n.pt',
     mask_image = None
     tracked_dets = None
     
+    no_detections_counter = 0
+    n = 10  # Example threshold, adjust as needed
+    
     for path, im, im0s, vid_cap, s in dataset:
         t1 = time_sync()
         im = torch.from_numpy(im).to(device)
@@ -178,7 +204,8 @@ def detect(weights=ROOT / 'yolov5n.pt',
         dt[0] += t2 - t1
 
         # Inference
-        visualize = increment_path(save_dir / Path(path).stem, mkdir=True) if visualize else False
+        #visualize = increment_path(save_dir / Path(path).stem, mkdir=True) if visualize else False
+        visualize = increment_path(save_dir / Path(path[0]).stem, mkdir=True) if visualize else False
         pred = model(im, augment=augment, visualize=visualize)
         t3 = time_sync()
         dt[1] += t3 - t2
@@ -205,11 +232,14 @@ def detect(weights=ROOT / 'yolov5n.pt',
             imc = im0.copy() if save_crop else im0
             annotator = Annotator(im0, line_width=line_thickness, example=str(names))
             if len(det):
+                no_detections_counter = 0  # Reset the counter
                 det[:, :4] = scale_coords(im.shape[2:], det[:, :4], im0.shape).round()
                 for c in det[:, -1].unique():
                     n = (det[:, -1] == c).sum()
                     s += f"{n} {names[int(c)]}{'s' * (n > 1)}, "
-
+                
+                confidences = []
+                
                 # Write results
                 for *xyxy, conf, cls in reversed(det):
                     if blur_obj:
@@ -218,6 +248,7 @@ def detect(weights=ROOT / 'yolov5n.pt',
                         im0[int(xyxy[1]):int(xyxy[3]),int(xyxy[0]):int(xyxy[2])] = blur
                     else:
                         continue
+                    confidences.append(conf.item())
                 #..................USE TRACK FUNCTION....................
                 #pass an empty array to sort
                 dets_to_sort = np.empty((0,6))
@@ -230,7 +261,7 @@ def detect(weights=ROOT / 'yolov5n.pt',
                  
                 # Run SORT
                 tracked_dets = sort_tracker.update(dets_to_sort)
-                tracks =sort_tracker.getTrackers()
+                tracks = sort_tracker.getTrackers()
                 
                 #loop over tracks
                 if show_tracks:
@@ -253,17 +284,25 @@ def detect(weights=ROOT / 'yolov5n.pt',
                     bbox_xyxy = tracked_dets[:,:4]
                     identities = tracked_dets[:, 8]
                     categories = tracked_dets[:, 4]
-                    img, updated_mask_image  = draw_boxes(im0, bbox_xyxy, identities, categories, names, color_box, mask_image=mask_image)
+                    img, updated_mask_image  = draw_boxes(im0, bbox_xyxy, display_labels, identities, categories, names, color_box, mask_image=mask_image, debug=debug, confidences=confidences)
                     
+            else:
+                no_detections_counter += 1  # Increment the counter            
+            
             kpi5_text.write(str(psutil.virtual_memory()[2])+"%")
             kpi6_text.write(str(psutil.cpu_percent())+'%')
             if tracked_dets is not None:
-                kpi7_text.write(str(len(tracked_dets)))
+                if no_detections_counter > n:  # If the counter exceeds the threshold
+                        kpi7_text.markdown("0")  # Then update kpi7_text to "0"
+                else:
+                    kpi7_text.write(str(len(tracked_dets)))
             stframe.image(im0, channels="BGR",use_column_width=True)
             
             if blacked:
                 stframe2.image(mask_image, channels="BGR",use_column_width=True)
 
+            view_img = False
+            
             if view_img:
                 cv2.imshow(str(p), im0)
                 cv2.waitKey(1) 
@@ -284,7 +323,6 @@ def detect(weights=ROOT / 'yolov5n.pt',
                             save_path += '.mp4'
                         vid_writer = cv2.VideoWriter(save_path, cv2.VideoWriter_fourcc(*'mp4v'), fps, (w, h))
                     vid_writer.write(im0)
-        print("Frame Processing!")
     print("Video Exported Success")
 
     if update:
@@ -324,9 +362,11 @@ def parse_opt():
     parser.add_argument('--blur-obj', action='store_true', help='Blur Detected Objects')
     parser.add_argument('--show-tracks', action='store_true', help='BShow tracking visuals')
     parser.add_argument('--color-box', action='store_true', help='Change color of every box and track')
+    parser.add_argument('--debug', action='store_true', help='Show tracking info in console')
     parser.add_argument('--kpi5_text', default='', help='streemlit kpi5_text')
     parser.add_argument('--kpi6_text', default='', help='streemlit kpi6_text')
     parser.add_argument('--kpi7_text', default='', help='streemlit kpi7_text')
+    parser.add_argument('--blurratio', type=int, default=1000, help='degree of blur')
     opt = parser.parse_args()
     opt.imgsz *= 2 if len(opt.imgsz) == 1 else 1  # expand
     print_args(vars(opt))
