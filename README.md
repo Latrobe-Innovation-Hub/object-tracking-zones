@@ -35,11 +35,7 @@ source yolov5objtracking/bin/activate
 
 ### For Window Users
 python3 -m venv yolov5objtracking
-cd yolov5objtracking
-cd Scripts
-activate
-cd ..
-cd ..
+yolov5objtracking\Scripts\activate.bat
 ```
 
 - Upgrade pip with mentioned command below.
