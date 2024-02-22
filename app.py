@@ -6,9 +6,6 @@ Date: 22.02.2024
 
 import streamlit as st
 from obj_det_and_trk_streamlit import *
-import tempfile
-import streamlit as st
-import json
 import torch
 
 rtsp_feeds = {
